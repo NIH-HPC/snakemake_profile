@@ -1,0 +1,10 @@
+[MASTER]
+disable=import-error,
+    subprocess-run-check,
+    line-too-long,
+    invalid-name,
+    locally-disabled,
+    attribute-defined-outside-init,
+    redefined-outer-name,
+    missing-function-docstring
+
