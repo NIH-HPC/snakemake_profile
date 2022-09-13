@@ -15,6 +15,7 @@ Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
 
 import argparse
 import sys
+import os
 #from pathlib import Path
 from math import ceil
 from subprocess import run
@@ -131,6 +132,15 @@ if __name__ == "__main__":
     p.add_argument("jobscript", help="Snakemake jobscript with job properties.")
     jobscript = p.parse_args().jobscript
     props = read_job_properties(jobscript)
+
+    # make sure log dir exists
+    try:
+        os.mkdir("logs")
+    except FileExistsError:
+        pass
+    except OSError as err:
+        print(err, file=sys.stderr)
+        sys.exit(1)
 
     sbatch_cmd, rule = make_sbatch_cmd(props)
     sbatch_cmd.append(jobscript)
