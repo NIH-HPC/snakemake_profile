@@ -18,7 +18,10 @@ The `threads` keyword is translated to `--cpus-per-task`
 **Optional resources:** 
 - `disk_mb=#` translates to `--gres=lscratch`
 - `gpu=#` Number of gpus needed. If no `gpu_model` is given translates to `--gres=gpu:#`
-- `gpu_model="MODEL"` Which gpu to use. Translates to `--gres=gpu:MODEL:#`
+- `gpu_model="MODEL"` Which gpu to use. Translates to `--gres=gpu:MODEL:#`. If the string contains
+  a "|" it is interpreted as a constraint and the gpu allocation is translated to 
+  `--gres=gpu:# --constraint=MODEL`. Note that for the latter use the feature names for the
+  gpus have to be used. On biowulf these start with 'gpu'. See the example below
 - `runtime=#` Runtime of the rule. Translates to `--time=#`
 - `ntasks` and `nodes`
 
@@ -51,9 +54,15 @@ rule gpu:
     threads: 10
     resources: runtime=10, mem_mb=1024, disk_mb=10240, gpu=1, gpu_model="k80"
     shell: "touch {output}"
+    
+rule gpu2:
+    output: "tests/gpu"
+    threads: 10
+    resources: runtime=10, mem_mb=1024, disk_mb=10240, gpu=1, gpu_model="[gpuk80|gpup100]"
+    shell: "touch {output}"
 __EOF__
 
 $ module load snakemake
 $ git clone https://github.com/NIH-HPC/snakemake_profile.git
-$ snakemake --profile biowulf
+$ snakemake --profile snakemake_profile
 ```

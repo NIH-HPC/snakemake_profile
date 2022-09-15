@@ -58,6 +58,7 @@ class TestMakeSbatchCmd(unittest.TestCase):
         self.assertIn("--partition=gpu", cmd)
         self.assertIn("--gres=lscratch:4,gpu:1", cmd)
     def test_cmd4(self):
+        "a gpu job on a a100"
         p = {"rule": "testrule3", "params": {}, "threads": 2,
                 "resources": {"mem_mb": 4096, "gpu": 1, "gpu_model": "a100", "disk_mb": 4096, "runtime": 600}}
         cmd, rule = make_sbatch_cmd(p)
@@ -67,6 +68,18 @@ class TestMakeSbatchCmd(unittest.TestCase):
         self.assertIn("--time=600", cmd)
         self.assertIn("--partition=gpu", cmd)
         self.assertIn("--gres=lscratch:4,gpu:a100:1", cmd)
+    def test_cmd4(self):
+        "test gpu constraints instead of single model"
+        p = {"rule": "testrule3", "params": {}, "threads": 2,
+                "resources": {"mem_mb": 4096, "gpu": 2, "gpu_model": "[gpua100|gpuv100x]", "disk_mb": 4096, "runtime": 600}}
+        cmd, rule = make_sbatch_cmd(p)
+        self.assertEqual(rule, "testrule3")
+        self.assertIn("--mem=4096", cmd)
+        self.assertIn("--cpus-per-task=2", cmd)
+        self.assertIn("--time=600", cmd)
+        self.assertIn("--partition=gpu", cmd)
+        self.assertIn("--gres=lscratch:4,gpu:2", cmd)
+        self.assertIn("--constraint='[gpua100|gpuv100x]'", cmd)
 
 if __name__ == '__main__':
     unittest.main()
