@@ -30,6 +30,10 @@ while attempts < 4:
     if res.returncode == 0:
         state = res.stdout.strip()
         break
+    if res.returncode == 4:
+        # the job is not yet known to dashboard_cli. Assume 'running'
+        state = "RUNNING"
+        break
     if attempts == 4:
         print(res.stderr)
         sys.exit(res.returncode)
