@@ -35,7 +35,10 @@ The `threads` keyword is translated to `--cpus-per-task`
 ```console
 $ cat <<'__EOF__' > Snakefile
 rule all:
-    input: "tests/norm", "tests/quick", "tests/gpu"
+    input: "tests/norm", "tests/quick", "tests/gpu", "tests/gpu2"
+
+rule clean:
+    shell: "rm -f tests/* logs/*"
 
 rule norm:
     output: "tests/norm"
@@ -56,10 +59,10 @@ rule gpu:
     shell: "touch {output}"
     
 rule gpu2:
-    output: "tests/gpu"
+    output: "tests/gpu2"
     threads: 10
     resources: runtime=10, mem_mb=1024, disk_mb=10240, gpu=1, gpu_model="[gpuk80|gpup100]"
-    shell: "touch {output}"
+    shell: "set -x ; touch {output}"
 __EOF__
 
 $ module load snakemake
