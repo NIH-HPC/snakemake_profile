@@ -61,56 +61,51 @@ def make_sbatch_cmd(props):
 
     sbatch_cmd = ["sbatch", f"--cpus-per-task={threads}"]
 
-    # Snakemake resource name is 'tasks' rather than 'ntasks', but retain
-    # backwards compatibility
+    def as_int(key):
+        """
+        Convert resource to integer; if it can't be converted then exit 1.
+        """
+        try:
+            val = int(resources[key])
+        except ValueError:
+            print(
+                f'{rule}: Could not parse {key}={resources[key]}', file=sys.stderr
+            )
+            sys.exit(1)
+        return val
+
+
+    # Snakemake recommended resource name is 'tasks' rather than 'ntasks', but
+    # retain backwards compatibility
+    # (https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
     if "tasks" in resources:
         resources["ntasks"] = resources["tasks"]
 
     if "ntasks" in resources:
-        try:
-            ntasks = int(resources["ntasks"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse ntasks={resources["ntasks"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        ntasks = as_int("ntasks")
         sbatch_cmd.append(f"--ntasks={ntasks}")
+
     if "nodes" in resources:
-        try:
-            nodes = int(resources["nodes"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse nodes={resources["nodes"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        nodes = as_int("nodes")
         sbatch_cmd.append(f"--nodes={nodes}")
 
     if "mem_mb" in resources:
-        try:
-            mem_mb = int(resources["mem_mb"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse mem_mb={resources["mem_mb"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        mem_mb = as_int("mem_mb")
+        sbatch_cmd.append(f"--mem={mem_mb}")
     else:
-        print(f"{rule}: ERROR - No mem_mb in resources", file=sys.stderr)
+        print(f"{rule}: ERROR - mem_mb is required to be in resources", file=sys.stderr)
         sys.exit(1)
 
-    sbatch_cmd.append(f"--mem={mem_mb}")
-
     if "runtime" in resources:
-        try:
-            time_min = int(resources["runtime"])
-        except ValueError:
-            pass
+        time_min = as_int("runtime")
+
+    # Use default if not otherwise specified
     sbatch_cmd.append(f"--time={time_min}")
 
     if "disk_mb" in resources:
-        try:
-            gres.append(f'lscratch:{ceil(resources["disk_mb"] / 1024.0)}')
-        except ValueError:
-            pass
+        disk_mb = as_int("disk_mb")
+        disk_gb = ceil(disk_mb * 1024.0)
+        gres.append(f'lscratch:{disk_gb}')
 
     if "gpu" in resources:
         if "gpu_model" in resources:
@@ -136,7 +131,6 @@ def make_sbatch_cmd(props):
         f"--output=logs/{rule}-%j.out",
         f"--partition={partition}",
     ]
-
 
     if "slurm_extra" in resources:
         sbatch_cmd.append(f'{resources["slurm_extra"]}')
