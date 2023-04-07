@@ -61,6 +61,11 @@ def make_sbatch_cmd(props):
 
     sbatch_cmd = ["sbatch", f"--cpus-per-task={threads}"]
 
+    # Snakemake resource name is 'tasks' rather than 'ntasks', but retain
+    # backwards compatibility
+    if "tasks" in resources:
+        resources["ntasks"] = resources["tasks"]
+
     if "ntasks" in resources:
         try:
             ntasks = int(resources["ntasks"])
