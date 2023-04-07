@@ -127,7 +127,10 @@ def make_sbatch_cmd(props):
     if len(gres) > 0:
         sbatch_cmd.append(f'--gres={",".join(gres)}')
 
-    partition = assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes)
+    if "slurm_partition" in resources:
+        partition = resources["slurm_partition"]
+    else:
+        partition = assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes)
 
     sbatch_cmd += [
         f"--output=logs/{rule}-%j.out",
