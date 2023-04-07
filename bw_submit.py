@@ -101,7 +101,7 @@ def make_sbatch_cmd(props):
 
     if "disk_mb" in resources:
         disk_mb = as_int("disk_mb")
-        disk_gb = ceil(disk_mb * 1024.0)
+        disk_gb = ceil(disk_mb / 1024.0)
         gres.append(f"lscratch:{disk_gb}")
 
     if "gpu" in resources:
