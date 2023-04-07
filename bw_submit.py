@@ -68,12 +68,9 @@ def make_sbatch_cmd(props):
         try:
             val = int(resources[key])
         except ValueError:
-            print(
-                f'{rule}: Could not parse {key}={resources[key]}', file=sys.stderr
-            )
+            print(f"{rule}: Could not parse {key}={resources[key]}", file=sys.stderr)
             sys.exit(1)
         return val
-
 
     # Snakemake recommended resource name is 'tasks' rather than 'ntasks', but
     # retain backwards compatibility
@@ -105,7 +102,7 @@ def make_sbatch_cmd(props):
     if "disk_mb" in resources:
         disk_mb = as_int("disk_mb")
         disk_gb = ceil(disk_mb * 1024.0)
-        gres.append(f'lscratch:{disk_gb}')
+        gres.append(f"lscratch:{disk_gb}")
 
     if "gpu" in resources:
         if "gpu_model" in resources:
@@ -113,7 +110,7 @@ def make_sbatch_cmd(props):
             # allow the definition of a constraint instead of a single gpu model.
             if "|" in model:
                 gres.append(f'gpu:{resources["gpu"]}')
-                sbatch_cmd.append(f'--constraint={model}')
+                sbatch_cmd.append(f"--constraint={model}")
             else:
                 gres.append(f'gpu:{resources["gpu_model"]}:{resources["gpu"]}')
         else:
