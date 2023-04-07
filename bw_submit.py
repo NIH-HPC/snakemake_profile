@@ -3,10 +3,11 @@
 """
 Snakemake SLURM submit script convenience wrapper for biowulf
 
-Everything is obtained from task resources & threads without
-any configuration files. The biowulf partition is inferred
-from resource requirements. Resource names are the conventional
-names used by other executors.
+Everything is obtained from task resources & threads without any configuration
+files. The biowulf partition is inferred from resource requirements if not
+manually specified. Resource names are the conventional names used by other
+executors, but aliases to slurm-specific resources are also included
+(https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
 
 Required resources: mem_mb
 Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
@@ -16,7 +17,6 @@ Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
 import argparse
 import sys
 import os
-#from pathlib import Path
 from math import ceil
 from subprocess import run
 from snakemake.utils import read_job_properties
