@@ -129,6 +129,10 @@ def make_sbatch_cmd(props):
         f"--partition={partition}",
     ]
 
+
+    if "slurm_extra" in resources:
+        sbatch_cmd.append(f'{resources["slurm_extra"]}')
+
     return sbatch_cmd, rule
 
 
