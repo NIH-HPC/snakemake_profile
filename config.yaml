@@ -3,7 +3,7 @@ jobscript: slurm_jobscript.sh
 cluster: bw_submit.py
 cluster-status: bw_status.py
 max-jobs-per-second: 1
-max-status-checks-per-second: 0.01
+max-status-checks-per-second: 1
 local-cores: 4
 latency-wait: 240
 jobs: 50
