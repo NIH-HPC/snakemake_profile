@@ -3,10 +3,11 @@
 """
 Snakemake SLURM submit script convenience wrapper for biowulf
 
-Everything is obtained from task resources & threads without
-any configuration files. The biowulf partition is inferred
-from resource requirements. Resource names are the conventional
-names used by other executors.
+Everything is obtained from task resources & threads without any configuration
+files. The biowulf partition is inferred from resource requirements if not
+manually specified. Resource names are the conventional names used by other
+executors, but aliases to slurm-specific resources are also included
+(https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
 
 Required resources: mem_mb
 Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
@@ -16,7 +17,6 @@ Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
 import argparse
 import sys
 import os
-#from pathlib import Path
 from math import ceil
 from subprocess import run
 from snakemake.utils import read_job_properties
@@ -61,51 +61,48 @@ def make_sbatch_cmd(props):
 
     sbatch_cmd = ["sbatch", f"--cpus-per-task={threads}"]
 
+    def as_int(key):
+        """
+        Convert resource to integer; if it can't be converted then exit 1.
+        """
+        try:
+            val = int(resources[key])
+        except ValueError:
+            print(f"{rule}: Could not parse {key}={resources[key]}", file=sys.stderr)
+            sys.exit(1)
+        return val
+
+    # Snakemake recommended resource name is 'tasks' rather than 'ntasks', but
+    # retain backwards compatibility
+    # (https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
+    if "tasks" in resources:
+        resources["ntasks"] = resources["tasks"]
+
     if "ntasks" in resources:
-        try:
-            ntasks = int(resources["ntasks"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse ntasks={resources["ntasks"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        ntasks = as_int("ntasks")
         sbatch_cmd.append(f"--ntasks={ntasks}")
+
     if "nodes" in resources:
-        try:
-            nodes = int(resources["nodes"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse nodes={resources["nodes"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        nodes = as_int("nodes")
         sbatch_cmd.append(f"--nodes={nodes}")
 
     if "mem_mb" in resources:
-        try:
-            mem_mb = int(resources["mem_mb"])
-        except ValueError:
-            print(
-                f'{rule}: Could not parse mem_mb={resources["mem_mb"]}', file=sys.stderr
-            )
-            sys.exit(1)
+        mem_mb = as_int("mem_mb")
+        sbatch_cmd.append(f"--mem={mem_mb}")
     else:
-        print(f"{rule}: ERROR - No mem_mb in resources", file=sys.stderr)
+        print(f"{rule}: ERROR - mem_mb is required to be in resources", file=sys.stderr)
         sys.exit(1)
 
-    sbatch_cmd.append(f"--mem={mem_mb}")
-
     if "runtime" in resources:
-        try:
-            time_min = int(resources["runtime"])
-        except ValueError:
-            pass
+        time_min = as_int("runtime")
+
+    # Use default if not otherwise specified
     sbatch_cmd.append(f"--time={time_min}")
 
     if "disk_mb" in resources:
-        try:
-            gres.append(f'lscratch:{ceil(resources["disk_mb"] / 1024.0)}')
-        except ValueError:
-            pass
+        disk_mb = as_int("disk_mb")
+        disk_gb = ceil(disk_mb / 1024.0)
+        gres.append(f"lscratch:{disk_gb}")
 
     if "gpu" in resources:
         if "gpu_model" in resources:
@@ -113,7 +110,7 @@ def make_sbatch_cmd(props):
             # allow the definition of a constraint instead of a single gpu model.
             if "|" in model:
                 gres.append(f'gpu:{resources["gpu"]}')
-                sbatch_cmd.append(f'--constraint={model}')
+                sbatch_cmd.append(f"--constraint={model}")
             else:
                 gres.append(f'gpu:{resources["gpu_model"]}:{resources["gpu"]}')
         else:
@@ -122,12 +119,18 @@ def make_sbatch_cmd(props):
     if len(gres) > 0:
         sbatch_cmd.append(f'--gres={",".join(gres)}')
 
-    partition = assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes)
+    if "slurm_partition" in resources:
+        partition = resources["slurm_partition"]
+    else:
+        partition = assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes)
 
     sbatch_cmd += [
         f"--output=logs/{rule}-%j.out",
         f"--partition={partition}",
     ]
+
+    if "slurm_extra" in resources:
+        sbatch_cmd.append(f'{resources["slurm_extra"]}')
 
     return sbatch_cmd, rule
 
