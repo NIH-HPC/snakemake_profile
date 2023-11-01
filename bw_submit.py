@@ -17,6 +17,7 @@ Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
 import argparse
 import sys
 import os
+import shlex
 from math import ceil
 from subprocess import run
 from snakemake.utils import read_job_properties
@@ -130,7 +131,7 @@ def make_sbatch_cmd(props):
     ]
 
     if "slurm_extra" in resources:
-        sbatch_cmd.append(f'{resources["slurm_extra"]}')
+        sbatch_cmd.extend(shlex.split(f'{resources["slurm_extra"]}'))
 
     return sbatch_cmd, rule
 
