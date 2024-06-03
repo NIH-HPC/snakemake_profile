@@ -2,6 +2,15 @@
 Snakemake profile for biowulf
 ================================================================================
 
+> [!IMPORTANT]
+>
+> ## Snakemake version 8 currently unsupported
+> 
+> This profile is designed for snakemake <8. Updated documentation for snakemake
+> 8 on Biowulf will be coming soon.
+
+
+
 ### Overview
 - obtains job status from dashboard data to minimize slurm queries
 - obtains all information required to submit rules as slurm jobs from rule
