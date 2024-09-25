@@ -2,6 +2,7 @@ restart-times: 0
 jobscript: slurm_jobscript.sh
 cluster: bw_submit.py
 cluster-status: bw_status.py
+cluster-cancel: scancel
 max-jobs-per-second: 1
 max-status-checks-per-second: 1
 local-cores: 4
