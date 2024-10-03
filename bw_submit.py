@@ -37,7 +37,7 @@ def assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes):
         return "multinode"
     if time_min <= 120 and mem_mb <= 370 * 1024:
         return "quick"
-    if time_min <= 240 * 60 and mem_mb <= 499 * 1024:
+    if time_min <= 240 * 60 and mem_mb <= 751 * 1024:
         return "norm"
     if time_min > 240 * 60:
         return "unlimited"
