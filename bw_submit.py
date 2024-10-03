@@ -37,7 +37,7 @@ def assign_partition(threads, mem_mb, time_min, gres, ntasks, nodes):
         return "multinode"
     if time_min <= 120 and mem_mb <= 370 * 1024:
         return "quick"
-    if time_min <= 240 * 60 and mem_mb <= 499 * 1024:
+    if time_min <= 240 * 60 and mem_mb <= 751 * 1024:
         return "norm"
     if time_min > 240 * 60:
         return "unlimited"
@@ -111,7 +111,7 @@ def make_sbatch_cmd(props):
             # allow the definition of a constraint instead of a single gpu model.
             if "|" in model:
                 gres.append(f'gpu:{resources["gpu"]}')
-                sbatch_cmd.append(f"--constraint={model}")
+                sbatch_cmd.append(f"--constraint='{model}'")
             else:
                 gres.append(f'gpu:{resources["gpu_model"]}:{resources["gpu"]}')
         else:

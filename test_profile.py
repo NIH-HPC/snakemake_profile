@@ -24,11 +24,11 @@ class TestAssignPartition(unittest.TestCase):
         "short jobs go to quick"
         self.assertEqual(assign_partition(2, 370 * 1024, 120, ["lscratch:100"], None, None), "quick")
     def test_mem(self):
-        "short jobs go to quick if they need less than 370 gb, to norm if they need less than 499gb"
-        self.assertEqual(assign_partition(2, 499 * 1024, 120, ["lscratch:100"], None, None), "norm")
+        "short jobs go to quick if they need less than 370 gb, to norm if they need less than 751gb"
+        self.assertEqual(assign_partition(2, 751 * 1024, 120, ["lscratch:100"], None, None), "norm")
     def test_mem2(self):
-        "short jobs go to quick if they need less than 370 gb, to norm if they need less than 499gb"
-        self.assertEqual(assign_partition(2, 500 * 1024, 120, ["lscratch:100"], None, None), "largemem")
+        "short jobs go to quick if they need less than 370 gb, to norm if they need less than 751gb"
+        self.assertEqual(assign_partition(2, 752 * 1024, 120, ["lscratch:100"], None, None), "largemem")
 
 class TestMakeSbatchCmd(unittest.TestCase):
     def test_cmd1(self):
