@@ -4,10 +4,10 @@ Snakemake profile for biowulf
 
 > [!IMPORTANT]
 >
-> ## Snakemake version 8 currently unsupported
+> ## This branch uses the generic cluster executor in snakemake >=8
 > 
-> This profile is designed for snakemake <8. Updated documentation for snakemake
-> 8 on Biowulf will be coming soon.
+> The main branch is for snakemake<8. At some point the snakemake8
+> branch will become the default.
 
 
 
