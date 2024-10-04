@@ -4,10 +4,9 @@ Snakemake profile for biowulf
 
 > [!IMPORTANT]
 >
-> ## Snakemake version 8 currently unsupported
+> This is a profile for snakemake<8
 > 
-> This profile is designed for snakemake <8. Updated documentation for snakemake
-> 8 on Biowulf will be coming soon.
+> For an experimental snakemake>=8 profile please use the snakemake8 branch
 
 
 
