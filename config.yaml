@@ -3,7 +3,8 @@ jobscript: slurm_jobscript.sh
 executor: cluster-generic
 cluster-generic-submit-cmd: bw_submit.py
 cluster-generic-status-cmd: bw_status.py
-cluster-generic-cancel: scancel
+cluster-generic-cancel-cmd: scancel
+cluster-generic-cancel-nargs: 50
 max-jobs-per-second: 1
 max-status-checks-per-second: 1
 local-cores: 4
