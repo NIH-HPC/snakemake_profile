@@ -5,7 +5,7 @@ cluster-generic-submit-cmd: bw_submit.py
 cluster-generic-status-cmd: bw_status.py
 cluster-generic-cancel-cmd: scancel
 cluster-generic-cancel-nargs: 50
-max-jobs-per-second: 1
+max-jobs-per-timespan: "60/1m"
 max-status-checks-per-second: 1
 local-cores: 4
 latency-wait: 240
