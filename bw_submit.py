@@ -9,8 +9,8 @@ manually specified. Resource names are the conventional names used by other
 executors, but aliases to slurm-specific resources are also included
 (https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
 
-Required resources: mem_mb
-Optional resources: disk_mb, gpu, gpu_model, runtime, ntasks, nodes
+Required resources: mem_mb (or mem)
+Optional resources: disk_mb (or disk), gpu, gpu_model, runtime, ntasks, nodes
 
 """
 
@@ -73,9 +73,19 @@ def make_sbatch_cmd(props):
             sys.exit(1)
         return val
 
-    # Snakemake recommended resource name is 'tasks' rather than 'ntasks', but
-    # retain backwards compatibility
-    # (https://snakemake.readthedocs.io/en/stable/executing/cluster.html#advanced-resource-specifications)
+    # Notes on backwards compatibility...
+    #
+    # Slurm "ntasks" can be specified with Snakemake "ntasks" or "tasks".
+    #
+    # Snakemake will automatically convert a resource of mem="1G" into an
+    # integer representing MB, and set props["resoureces"]["mem_mb"] to that
+    # value. Similarly, "disk" is automatically converted to "disk_mb". You can
+    # still directly specify "mem_mb" or "disk_mb" as integer in the Snakefile.
+    #
+    # "runtime" can be a string like "1h" or integer minutes like 60.
+    #
+    # These string-to-int conversions are done by Snakemake ahead of time, so
+    # we do not need to convert here.
     if "tasks" in resources:
         resources["ntasks"] = resources["tasks"]
 
@@ -91,7 +101,7 @@ def make_sbatch_cmd(props):
         mem_mb = as_int("mem_mb")
         sbatch_cmd.append(f"--mem={mem_mb}")
     else:
-        print(f"{rule}: ERROR - mem_mb is required to be in resources", file=sys.stderr)
+        print(f"{rule}: ERROR - mem (as a string like '2G') or mem_mb (int like 1024 *2) is required to be in resources", file=sys.stderr)
         sys.exit(1)
 
     if "runtime" in resources:
