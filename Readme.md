@@ -4,9 +4,8 @@ Snakemake profile for biowulf
 
 > [!IMPORTANT]
 >
-> This is a profile for snakemake<8
+> This is a profile for snakemake9
 > 
-> For an experimental snakemake>=8 profile please use the snakemake8 branch
 
 
 
