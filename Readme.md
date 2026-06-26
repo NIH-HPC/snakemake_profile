@@ -12,7 +12,7 @@ for the [NIH Biowulf](https://hpc.nih.gov) cluster using the
 ## Installation
 
 ```bash
-module load snakemake
+module load snakemake/9.23.1
 
 mkdir -p ~/.config/snakemake
 git clone --branch snakemake9 \
