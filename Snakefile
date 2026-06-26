@@ -56,7 +56,8 @@ rule quick:
         runtime=10,
         mem_mb=1024,
         disk_mb=10240,
-        slurm_extra="'--gres=lscratch:10'"
+        slurm_extra="'--gres=lscratch:10'",
+        tmpdir=lscratch_tmpdir
     shell:
         "echo $TMPDIR; touch {output}"
 
@@ -94,7 +95,8 @@ rule scratch:
         runtime=30,
         mem_mb=4096,
         disk_mb=51200,
-        slurm_extra="'--gres=lscratch:50'"
+        slurm_extra="'--gres=lscratch:50'",
+        tmpdir=lscratch_tmpdir
     shell:
         "echo $TMPDIR; touch {output}"
 
