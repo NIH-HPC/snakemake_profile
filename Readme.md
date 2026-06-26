@@ -224,16 +224,3 @@ rule ntasks:
 
 ---
 
-## What changed from the old profile (Snakemake 7)
-
-| Old (bw_submit.py) | New (snakemake 9) |
-|---|---|
-| `slurm-submit.py` / `bw_submit.py` | Removed — handled by `snakemake-executor-plugin-slurm` |
-| `slurm-status.py` / `bw_status.py` | Removed — plugin polls via `sacct`/`squeue` internally |
-| `slurm-jobscript.sh` | Removed — `$TMPDIR` set by Biowulf when lscratch is allocated |
-| `cluster:` key in `config.yaml` | Replaced by `executor: slurm` |
-| Automatic partition selection | **Removed** — set `slurm_partition` explicitly in rule resources |
-| `disk_mb` auto-mapped to `--gres=lscratch:N` | Use `slurm_extra="'--gres=lscratch:N'"` alongside `disk_mb` |
-| `gpu` + `gpu_model` custom logic | Native plugin support (same resource names, same behaviour) |
-| `[gpua100\|gpuv100x]` constraint syntax | Use `slurm_extra="'--constraint=[gpua100\|gpuv100x]'"` |
-| `ntasks` resource | Use `slurm_extra="'--ntasks=N'"` |
