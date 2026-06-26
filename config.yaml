@@ -1,17 +1,36 @@
-restart-times: 0
-jobscript: slurm_jobscript.sh
-cluster: bw_submit.py
-cluster-status: bw_status.py
-cluster-cancel: scancel
-max-jobs-per-second: 1
-max-status-checks-per-second: 1
+executor: slurm
+jobs: 500
 local-cores: 4
-latency-wait: 240
-jobs: 50
-keep-going: True
-rerun-incomplete: True
-# note that the space before the -- is necessary - otherwise cluster
-# execution failes as --cleanenv gets interpreted as a new option since
-# snakemake passes this on as --singularity-args "--cleanenv" - i.e. without
-# a `=`
-singularity-args: " --cleanenv"
+latency-wait: 120
+rerun-incomplete: true
+printshellcmds: true
+
+default-resources:
+  # Biowulf default partition. Rules can override with:
+  #   resources: slurm_partition="gpu"
+  slurm_partition: "norm"
+
+  # Runtime in minutes (required by the slurm plugin).
+  # norm partition max: 10 days = 14400 min.
+  runtime: 1440
+
+  # Memory per job in MB.
+  mem_mb: 4096
+
+  # lscratch: rules that need local scratch set disk_mb (in MB).
+  # Biowulf requires an explicit --gres=lscratch:N (in GB) to allocate lscratch,
+  # which sets $TMPDIR = /lscratch/$SLURM_JOB_ID automatically.
+  # The slurm plugin does NOT translate disk_mb to lscratch gres automatically,
+  # so rules must also pass slurm_extra, e.g.:
+  #
+  #   resources:
+  #     disk_mb=51200,
+  #     slurm_extra="'--gres=lscratch:50'"
+  #
+  # See README for a helper function pattern to keep rules DRY.
+
+  # GPU: rules request GPUs with:
+  #   resources:
+  #     gpu=1, gpu_model="a100", slurm_partition="gpu"
+  # The slurm plugin natively maps gpu + gpu_model → --gres=gpu:MODEL:N.
+  # For constraint-style (model as feature flag), use slurm_extra instead.

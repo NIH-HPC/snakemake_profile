@@ -1,96 +1,227 @@
+# Snakemake profile for Biowulf — Snakemake ≥ 9
 
-Snakemake profile for biowulf
-================================================================================
+Minimal [Snakemake profile](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles)
+for the [NIH Biowulf](https://hpc.nih.gov) cluster using the
+[snakemake-executor-plugin-slurm](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html).
 
-> [!IMPORTANT]
->
-> This is a profile for snakemake9
-> 
+> **Requires Snakemake ≥ 9 and `snakemake-executor-plugin-slurm`.**
+> For older Snakemake, use the `main` branch of this repository.
 
+---
 
+## Installation
 
-### Overview
-- obtains job status from dashboard data to minimize slurm queries
-- obtains all information required to submit rules as slurm jobs from rule
-  threads and resources. The partition to submit to is inferred from the
-  required resources.
+```bash
+# 1. Install Snakemake ≥ 9 and the SLURM executor plugin
+module load snakemake  # or: pip/conda install snakemake snakemake-executor-plugin-slurm
 
-### Usage
+# 2. Install the profile
+mkdir -p ~/.config/snakemake
+git clone --branch snakemake9 \
+    https://github.com/NIH-HPC/snakemake_profile.git \
+    ~/.config/snakemake/biowulf
+```
 
-The `threads` keyword is translated to `--cpus-per-task`
+Then run any workflow with:
 
-**Required resources:**
-- `mem_mb=#` required memory in megabytes. Translates to `--mem`
- 
-**Optional resources:** 
-- `disk_mb=#` translates to `--gres=lscratch`
-- `gpu=#` Number of gpus needed. If no `gpu_model` is given translates to `--gres=gpu:#`
-- `gpu_model="MODEL"` Which gpu to use. Translates to `--gres=gpu:MODEL:#`. If the string contains
-  a "|" it is interpreted as a constraint and the gpu allocation is translated to 
-  `--gres=gpu:# --constraint=MODEL`. Note that for the latter use the feature names for the
-  gpus have to be used. On biowulf these start with 'gpu'. See the example below
-- `runtime=#` Runtime of the rule. Translates to `--time=#`
-- `ntasks` and `nodes`
+```bash
+snakemake --profile biowulf [other options]
+```
 
+---
 
-**TODO:**
-- add a config file to supply additional sbatch options (e.g. constraints).
+## How it works
 
+This profile sets `executor: slurm` and sensible Biowulf defaults in `config.yaml`.
+Job submission, status polling, and cancellation are all handled by the executor plugin —
+no custom Python scripts are needed.
 
-### Example
+All resource information is taken from rule `threads:` and `resources:` directives.
 
-```console
-$ cat <<'__EOF__' > Snakefile
+---
+
+## Resources
+
+### Standard resources
+
+| Resource | Description | Default |
+|---|---|---|
+| `threads` | CPUs per task (`--cpus-per-task`) | 1 |
+| `mem_mb` | Memory in MB | 4096 |
+| `runtime` | Wall time in **minutes** | 120 |
+| `slurm_partition` | Override partition | `norm` |
+
+### lscratch (local scratch disk)
+
+Biowulf's local scratch (`/lscratch/$SLURM_JOB_ID`) must be requested explicitly via
+`--gres=lscratch:N` (N in GB). The executor plugin does **not** translate `disk_mb`
+automatically. Use `slurm_extra` in the rule:
+
+```python
+rule with_scratch:
+    output: "results/big_output"
+    threads: 8
+    resources:
+        mem_mb=16384,
+        runtime=240,
+        disk_mb=102400,           # informational for Snakemake scheduling
+        slurm_extra="'--gres=lscratch:100'"   # 100 GB; sets $TMPDIR automatically
+    shell:
+        "echo $TMPDIR; my_tool --tmp $TMPDIR ..."
+```
+
+To avoid repeating `slurm_extra` in every rule, define a helper in your Snakefile:
+
+```python
+def lscratch(gb):
+    return f"'--gres=lscratch:{gb}'"
+```
+
+Then use `slurm_extra=lscratch(100)` in each rule.
+
+### GPUs
+
+The executor plugin maps `gpu` + `gpu_model` resources to `--gres=gpu:MODEL:N`.
+
+```python
+rule gpu_job:
+    output: "results/gpu_output"
+    threads: 8
+    resources:
+        mem_mb=32768,
+        runtime=480,
+        slurm_partition="gpu",
+        gpu=1,
+        gpu_model="a100"        # → --gres=gpu:a100:1
+    shell:
+        "nvidia-smi; my_gpu_tool ..."
+```
+
+For GPU jobs where you want to select by constraint (feature flag) rather than model name,
+use `slurm_extra`:
+
+```python
+resources:
+    slurm_partition="gpu",
+    gpu=1,
+    slurm_extra="'--constraint=gpua100&gpunvidia'"
+```
+
+### Multiple tasks (MPI)
+
+```python
+rule mpi_job:
+    output: "results/mpi_output"
+    threads: 1              # threads per task
+    resources:
+        mem_mb=8192,
+        runtime=600,
+        slurm_extra="'--ntasks=16 --nodes=2'"
+    shell:
+        "mpirun -np 16 my_mpi_tool ..."
+```
+
+---
+
+## Full example Snakefile
+
+```python
 rule all:
-    input: "tests/norm", "tests/force_norm", "tests/quick", "tests/gpu", "tests/gpu2", "tests/tasks", "tests/ntasks"
-
-rule clean:
-    shell: "rm -f tests/* logs/*"
+    input:
+        "tests/norm",
+        "tests/quick",
+        "tests/force_norm",
+        "tests/gpu",
+        "tests/scratch",
 
 rule norm:
     output: "tests/norm"
     threads: 10
-    resources: runtime=600, mem_mb=1024
-    shell: "echo $TMPDIR ; touch {output}"
+    resources:
+        runtime=600,
+        mem_mb=1024
+    shell: "touch {output}"
 
 rule quick:
     output: "tests/quick"
-    threads: 10
-    resources: runtime=10, mem_mb=1024, disk_mb=10240
+    threads: 4
+    resources:
+        runtime=10,
+        mem_mb=1024
     shell: "touch {output}"
 
 rule force_norm:
     output: "tests/force_norm"
     threads: 10
-    resources: runtime=10, mem_mb=1024, disk_mb=10240, slurm_partition="norm"
+    resources:
+        runtime=10,
+        mem_mb=1024,
+        slurm_partition="norm"
     shell: "touch {output}"
 
 rule gpu:
     output: "tests/gpu"
-    threads: 10
-    resources: runtime=10, mem_mb=1024, disk_mb=10240, gpu=1, gpu_model="k80"
+    threads: 8
+    resources:
+        runtime=60,
+        mem_mb=16384,
+        slurm_partition="gpu",
+        gpu=1,
+        gpu_model="a100"
     shell: "touch {output}"
 
-rule gpu2:
-    output: "tests/gpu2"
-    threads: 10
-    resources: runtime=10, mem_mb=1024, disk_mb=10240, gpu=1, gpu_model="[gpuk80|gpup100]"
-    shell: "set -x ; touch {output}"
-
-rule tasks:
-    output: "tests/tasks"
-    resources: tasks=2
-    shell: "touch {output}"
-
-rule ntasks:
-    output: "tests/ntasks"
-    resources: ntasks=2
-    shell: "touch {output}"
-
-
-__EOF__
-
-$ module load snakemake
-$ git clone https://github.com/NIH-HPC/snakemake_profile.git
-$ snakemake --profile snakemake_profile
+rule scratch:
+    output: "tests/scratch"
+    threads: 4
+    resources:
+        runtime=30,
+        mem_mb=4096,
+        disk_mb=51200,
+        slurm_extra="'--gres=lscratch:50'"
+    shell: "echo $TMPDIR; touch {output}"
 ```
+
+Run with:
+
+```bash
+snakemake --profile biowulf
+```
+
+---
+
+## Profile hierarchy
+
+You can layer a workflow-level profile on top of the system profile for per-project
+defaults. Create a `config.yaml` next to your `Snakefile`:
+
+```yaml
+# workflow-level profile — overrides ~/.config/snakemake/biowulf/config.yaml
+default-resources:
+  mem_mb: 8192
+  runtime: 60
+set-resources:
+  big_rule:
+    mem_mb: 128000
+    runtime: 1440
+    slurm_partition: "largemem"
+```
+
+Then run:
+
+```bash
+snakemake --profile biowulf --workflow-profile .
+```
+
+---
+
+## What changed from the old profile (Snakemake < 8)
+
+| Old | New |
+|---|---|
+| `slurm-submit.py` | Removed — handled by `snakemake-executor-plugin-slurm` |
+| `slurm-status.py` | Removed — plugin polls via `sacct`/`squeue` |
+| `slurm-jobscript.sh` | Removed |
+| `cluster:` key in `config.yaml` | Replaced by `executor: slurm` |
+| `disk_mb` auto-mapped to lscratch | Must use `slurm_extra="'--gres=lscratch:N'"` |
+| `gpu` + `gpu_model` custom logic | Native plugin support (`gpu` + `gpu_model` resources) |
+| `ntasks` resource | Use `slurm_extra="'--ntasks=N'"` |
