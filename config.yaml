@@ -1,4 +1,5 @@
 executor: slurm
+jobscript: biowulf_jobscript.sh
 jobs: 500
 local-cores: 4
 latency-wait: 120
