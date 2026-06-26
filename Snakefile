@@ -9,6 +9,10 @@ Each rule tests a different resource combination to verify
 that the profile submits jobs correctly to Biowulf.
 """
 
+import os
+include: os.path.expanduser("~/.config/snakemake/biowulf/biowulf.smk")
+
+
 rule all:
     input:
         "tests/norm",
