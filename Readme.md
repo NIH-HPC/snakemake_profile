@@ -4,18 +4,16 @@ Minimal [Snakemake profile](https://snakemake.readthedocs.io/en/stable/executing
 for the [NIH Biowulf](https://hpc.nih.gov) cluster using the
 [snakemake-executor-plugin-slurm](https://snakemake.github.io/snakemake-plugin-catalog/plugins/executor/slurm.html).
 
-> **Requires Snakemake ≥ 9 and `snakemake-executor-plugin-slurm`.**
-> For older Snakemake, use the `main` branch of this repository.
+> **Requires Snakemake ≥ 9 and `snakemake-executor-plugin-slurm`.**  
+> For Snakemake 7, use the `main` branch of this repository.
 
 ---
 
 ## Installation
 
 ```bash
-# 1. Install Snakemake ≥ 9 and the SLURM executor plugin
-module load snakemake  # or: pip/conda install snakemake snakemake-executor-plugin-slurm
+module load snakemake
 
-# 2. Install the profile
 mkdir -p ~/.config/snakemake
 git clone --branch snakemake9 \
     https://github.com/NIH-HPC/snakemake_profile.git \
@@ -32,11 +30,15 @@ snakemake --profile biowulf [other options]
 
 ## How it works
 
-This profile sets `executor: slurm` and sensible Biowulf defaults in `config.yaml`.
-Job submission, status polling, and cancellation are all handled by the executor plugin —
-no custom Python scripts are needed.
+This profile sets `executor: slurm` and Biowulf-appropriate defaults in `config.yaml`.
+Job submission, status polling, and cancellation are all handled internally by the
+executor plugin — no custom Python scripts are needed.
 
-All resource information is taken from rule `threads:` and `resources:` directives.
+All resource information is read from each rule's `threads:` and `resources:` directives.
+
+The profile sets Biowulf-required rate limits on SLURM calls
+(`max-jobs-per-second`, `max-status-checks-per-second`) as
+[requested by NIH HPC staff](https://hpc.nih.gov/apps/snakemake.html).
 
 ---
 
@@ -44,44 +46,50 @@ All resource information is taken from rule `threads:` and `resources:` directiv
 
 ### Standard resources
 
-| Resource | Description | Default |
+| Rule directive | SLURM flag | Default |
 |---|---|---|
-| `threads` | CPUs per task (`--cpus-per-task`) | 1 |
-| `mem_mb` | Memory in MB | 4096 |
-| `runtime` | Wall time in **minutes** | 120 |
-| `slurm_partition` | Override partition | `norm` |
+| `threads` | `--cpus-per-task` | 1 |
+| `resources: mem_mb` | `--mem` | 4096 MB |
+| `resources: runtime` | `--time` | 120 min |
+| `resources: slurm_partition` | `--partition` | `norm` |
+
+### Partition selection
+
+Unlike the old profile, **partition selection is not automatic**. Rules that need
+a non-default partition must set it explicitly:
+
+```python
+resources:
+    slurm_partition="gpu"       # GPU jobs
+    slurm_partition="largemem"  # > 500 GB memory
+    slurm_partition="multinode" # multi-node MPI jobs
+    slurm_partition="quick"     # < 4 hours, < 16 cores, < 370 GB
+```
+
+The `norm` partition is used for everything else.
 
 ### lscratch (local scratch disk)
 
-Biowulf's local scratch (`/lscratch/$SLURM_JOB_ID`) must be requested explicitly via
-`--gres=lscratch:N` (N in GB). The executor plugin does **not** translate `disk_mb`
-automatically. Use `slurm_extra` in the rule:
+Biowulf's local scratch (`/lscratch/$SLURM_JOB_ID`) must be requested via
+`--gres=lscratch:N` (N in GB). When allocated, Biowulf sets `$TMPDIR` automatically.
+The executor plugin does not translate `disk_mb` to lscratch, so use `slurm_extra`:
 
 ```python
 rule with_scratch:
-    output: "results/big_output"
+    output: "results/output"
     threads: 8
     resources:
         mem_mb=16384,
         runtime=240,
-        disk_mb=102400,           # informational for Snakemake scheduling
-        slurm_extra="'--gres=lscratch:100'"   # 100 GB; sets $TMPDIR automatically
+        disk_mb=102400,                          # informational for Snakemake scheduling
+        slurm_extra="'--gres=lscratch:100'"      # 100 GB; sets $TMPDIR automatically
     shell:
-        "echo $TMPDIR; my_tool --tmp $TMPDIR ..."
+        "my_tool --tmp $TMPDIR ..."
 ```
-
-To avoid repeating `slurm_extra` in every rule, define a helper in your Snakefile:
-
-```python
-def lscratch(gb):
-    return f"'--gres=lscratch:{gb}'"
-```
-
-Then use `slurm_extra=lscratch(100)` in each rule.
 
 ### GPUs
 
-The executor plugin maps `gpu` + `gpu_model` resources to `--gres=gpu:MODEL:N`.
+The executor plugin natively maps `gpu` + `gpu_model` to `--gres=gpu:MODEL:N`:
 
 ```python
 rule gpu_job:
@@ -94,31 +102,36 @@ rule gpu_job:
         gpu=1,
         gpu_model="a100"        # → --gres=gpu:a100:1
     shell:
-        "nvidia-smi; my_gpu_tool ..."
+        "my_gpu_tool ..."
 ```
 
-For GPU jobs where you want to select by constraint (feature flag) rather than model name,
+Without `gpu_model`, any available GPU is requested (`--gres=gpu:1`).
+
+For constraint-style selection (the old `[gpua100|gpuv100x]` syntax from `bw_submit.py`),
 use `slurm_extra`:
 
 ```python
 resources:
     slurm_partition="gpu",
-    gpu=1,
-    slurm_extra="'--constraint=gpua100&gpunvidia'"
+    gpu=2,
+    slurm_extra="'--constraint=[gpua100|gpuv100x]'"
 ```
 
-### Multiple tasks (MPI)
+### MPI / multinode jobs
+
+The old `ntasks` resource is no longer supported directly. Use `slurm_extra`:
 
 ```python
 rule mpi_job:
     output: "results/mpi_output"
-    threads: 1              # threads per task
+    threads: 1
     resources:
         mem_mb=8192,
         runtime=600,
-        slurm_extra="'--ntasks=16 --nodes=2'"
+        slurm_partition="multinode",
+        slurm_extra="'--ntasks=32 --nodes=2'"
     shell:
-        "mpirun -np 16 my_mpi_tool ..."
+        "mpirun -np 32 my_mpi_tool ..."
 ```
 
 ---
@@ -132,7 +145,9 @@ rule all:
         "tests/quick",
         "tests/force_norm",
         "tests/gpu",
+        "tests/gpu2",
         "tests/scratch",
+        "tests/ntasks",
 
 rule norm:
     output: "tests/norm"
@@ -140,14 +155,16 @@ rule norm:
     resources:
         runtime=600,
         mem_mb=1024
-    shell: "touch {output}"
+    shell: "echo $TMPDIR; touch {output}"
 
 rule quick:
     output: "tests/quick"
     threads: 4
     resources:
         runtime=10,
-        mem_mb=1024
+        mem_mb=1024,
+        disk_mb=10240,
+        slurm_extra="'--gres=lscratch:10'"
     shell: "touch {output}"
 
 rule force_norm:
@@ -170,6 +187,17 @@ rule gpu:
         gpu_model="a100"
     shell: "touch {output}"
 
+rule gpu2:
+    output: "tests/gpu2"
+    threads: 8
+    resources:
+        runtime=60,
+        mem_mb=16384,
+        slurm_partition="gpu",
+        gpu=2,
+        slurm_extra="'--constraint=[gpua100|gpuv100x]'"
+    shell: "touch {output}"
+
 rule scratch:
     output: "tests/scratch"
     threads: 4
@@ -179,49 +207,30 @@ rule scratch:
         disk_mb=51200,
         slurm_extra="'--gres=lscratch:50'"
     shell: "echo $TMPDIR; touch {output}"
-```
 
-Run with:
-
-```bash
-snakemake --profile biowulf
-```
-
----
-
-## Profile hierarchy
-
-You can layer a workflow-level profile on top of the system profile for per-project
-defaults. Create a `config.yaml` next to your `Snakefile`:
-
-```yaml
-# workflow-level profile — overrides ~/.config/snakemake/biowulf/config.yaml
-default-resources:
-  mem_mb: 8192
-  runtime: 60
-set-resources:
-  big_rule:
-    mem_mb: 128000
-    runtime: 1440
-    slurm_partition: "largemem"
-```
-
-Then run:
-
-```bash
-snakemake --profile biowulf --workflow-profile .
+rule ntasks:
+    output: "tests/ntasks"
+    threads: 1
+    resources:
+        runtime=60,
+        mem_mb=4096,
+        slurm_partition="multinode",
+        slurm_extra="'--ntasks=16 --nodes=2'"
+    shell: "touch {output}"
 ```
 
 ---
 
-## What changed from the old profile (Snakemake < 8)
+## What changed from the old profile (Snakemake 7)
 
-| Old | New |
+| Old (bw_submit.py) | New (snakemake 9) |
 |---|---|
-| `slurm-submit.py` | Removed — handled by `snakemake-executor-plugin-slurm` |
-| `slurm-status.py` | Removed — plugin polls via `sacct`/`squeue` |
-| `slurm-jobscript.sh` | Removed |
+| `slurm-submit.py` / `bw_submit.py` | Removed — handled by `snakemake-executor-plugin-slurm` |
+| `slurm-status.py` / `bw_status.py` | Removed — plugin polls via `sacct`/`squeue` internally |
+| `slurm-jobscript.sh` | Removed — `$TMPDIR` set by Biowulf when lscratch is allocated |
 | `cluster:` key in `config.yaml` | Replaced by `executor: slurm` |
-| `disk_mb` auto-mapped to lscratch | Must use `slurm_extra="'--gres=lscratch:N'"` |
-| `gpu` + `gpu_model` custom logic | Native plugin support (`gpu` + `gpu_model` resources) |
+| Automatic partition selection | **Removed** — set `slurm_partition` explicitly in rule resources |
+| `disk_mb` auto-mapped to `--gres=lscratch:N` | Use `slurm_extra="'--gres=lscratch:N'"` alongside `disk_mb` |
+| `gpu` + `gpu_model` custom logic | Native plugin support (same resource names, same behaviour) |
+| `[gpua100\|gpuv100x]` constraint syntax | Use `slurm_extra="'--constraint=[gpua100\|gpuv100x]'"` |
 | `ntasks` resource | Use `slurm_extra="'--ntasks=N'"` |

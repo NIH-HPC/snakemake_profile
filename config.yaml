@@ -3,34 +3,43 @@ jobs: 500
 local-cores: 4
 latency-wait: 120
 rerun-incomplete: true
+keep-going: true
+restart-times: 0
 printshellcmds: true
 
+# Biowulf asks users to rate-limit calls to slurm:
+# https://hpc.nih.gov/apps/snakemake.html
+max-jobs-per-second: 1
+max-status-checks-per-second: 0.1
+
 default-resources:
-  # Biowulf default partition. Rules can override with:
+  # Default partition. Rules can override with:
   #   resources: slurm_partition="gpu"
+  # Partition auto-selection from the old bw_submit.py is no longer available;
+  # rules that need gpu/largemem/multinode must set slurm_partition explicitly.
   slurm_partition: "norm"
 
   # Runtime in minutes (required by the slurm plugin).
   # norm partition max: 10 days = 14400 min.
-  runtime: 1440
+  runtime: 720
 
   # Memory per job in MB.
   mem_mb: 4096
 
-  # lscratch: rules that need local scratch set disk_mb (in MB).
-  # Biowulf requires an explicit --gres=lscratch:N (in GB) to allocate lscratch,
-  # which sets $TMPDIR = /lscratch/$SLURM_JOB_ID automatically.
-  # The slurm plugin does NOT translate disk_mb to lscratch gres automatically,
-  # so rules must also pass slurm_extra, e.g.:
+  # lscratch: rules that need local scratch set disk_mb (in MB) AND slurm_extra.
+  # Biowulf requires --gres=lscratch:N (GB) to allocate /lscratch/$SLURM_JOB_ID,
+  # which also sets $TMPDIR automatically. The plugin does not translate disk_mb
+  # to lscratch automatically, so rules must include both, e.g.:
   #
   #   resources:
   #     disk_mb=51200,
   #     slurm_extra="'--gres=lscratch:50'"
   #
-  # See README for a helper function pattern to keep rules DRY.
-
-  # GPU: rules request GPUs with:
-  #   resources:
-  #     gpu=1, gpu_model="a100", slurm_partition="gpu"
-  # The slurm plugin natively maps gpu + gpu_model → --gres=gpu:MODEL:N.
-  # For constraint-style (model as feature flag), use slurm_extra instead.
+  # GPU: the slurm plugin maps gpu + gpu_model natively:
+  #   gpu=1, gpu_model="a100"  →  --gres=gpu:a100:1
+  #   gpu=1                    →  --gres=gpu:1
+  # For constraint-style GPU selection (formerly [gpua100|gpuv100x] syntax),
+  # use slurm_extra="'--constraint=...'" instead.
+  #
+  # MPI/multinode: use slurm_extra="'--ntasks=N --nodes=M'"
+  # (formerly the ntasks resource in bw_submit.py)
