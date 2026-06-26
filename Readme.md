@@ -81,8 +81,9 @@ rule with_scratch:
     resources:
         mem_mb=16384,
         runtime=240,
-        disk_mb=102400,                          # informational for Snakemake scheduling
-        slurm_extra="'--gres=lscratch:100'"      # 100 GB; sets $TMPDIR automatically
+        disk_mb=102400,                           # informational for Snakemake scheduling
+        slurm_extra="'--gres=lscratch:100'",      # 100 GB; sets $TMPDIR automatically
+        tmpdir=lscratch_tmpdir                    #pay attendation to specify it here!
     shell:
         "my_tool --tmp $TMPDIR ..."
 ```
@@ -164,7 +165,8 @@ rule quick:
         runtime=10,
         mem_mb=1024,
         disk_mb=10240,
-        slurm_extra="'--gres=lscratch:10'"
+        slurm_extra="'--gres=lscratch:10'",
+        tmpdir=lscratch_tmpdir                    #pay attendation to specify it here!
     shell: "touch {output}"
 
 rule force_norm:
@@ -205,7 +207,8 @@ rule scratch:
         runtime=30,
         mem_mb=4096,
         disk_mb=51200,
-        slurm_extra="'--gres=lscratch:50'"
+        slurm_extra="'--gres=lscratch:50'",
+        tmpdir=lscratch_tmpdir                    #pay attendation to specify it here!
     shell: "echo $TMPDIR; touch {output}"
 
 rule ntasks:
